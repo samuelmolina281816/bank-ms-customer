@@ -1,0 +1,574 @@
+openapi: 3.0.3
+info:
+  title: Bank Customer API
+  version: 1.0.0
+  description: Contract-first API for customer identity and eligibility in Phase I.
+servers:
+- url: http://localhost:8080
+  description: Local development
+tags:
+- name: Customers
+  description: Customer lifecycle operations
+- name: Customer Eligibility
+  description: Minimal internal eligibility contract
+paths:
+  /api/v1/customer:
+    post:
+      tags:
+      - Customers
+      summary: Create customer
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags:
+      - Customers
+      summary: List customers
+      operationId: findAllCustomers
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/customer/{customerNumber}:
+    get:
+      tags:
+      - Customers
+      summary: Find customer by public number
+      operationId: findCustomerByNumber
+      parameters:
+      - &id001
+        name: customerNumber
+        in: path
+        required: true
+        description: Public customer number
+        schema:
+          type: integer
+          format: int64
+          minimum: 10000000
+          maximum: 99999999
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      tags:
+      - Customers
+      summary: Update allowed customer data
+      operationId: updateCustomer
+      parameters:
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    delete:
+      tags:
+      - Customers
+      summary: Deactivate customer
+      operationId: deactivateCustomer
+      description: Logical deactivation; does not delete historical data.
+      parameters:
+      - *id001
+      responses:
+        '204':
+          description: Operation completed successfully
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/customer/documents/{documentType}/{documentNumber}:
+    get:
+      tags:
+      - Customers
+      summary: Find customer by document
+      operationId: findCustomerByDocument
+      parameters:
+      - &id002
+        name: documentType
+        in: path
+        required: true
+        description: Identification document type
+        schema:
+          $ref: '#/components/schemas/DocumentType'
+      - &id003
+        name: documentNumber
+        in: path
+        required: true
+        description: Document number; format and length depend on documentType
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9]{5,12}$
+          minLength: 5
+          maxLength: 12
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/customer/documents/{documentType}/{documentNumber}/eligibility:
+    get:
+      tags:
+      - Customer Eligibility
+      summary: Get minimal eligibility data
+      operationId: getCustomerEligibility
+      parameters:
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerEligibilityResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+components:
+  schemas:
+    ApiError:
+      type: object
+      required:
+      - timestamp
+      - status
+      - code
+      - message
+      - path
+      - correlationId
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-10-29T20:30:45Z'
+        status:
+          type: integer
+          format: int32
+          example: 400
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed
+        path:
+          type: string
+          example: /api/v1/customer
+        correlationId:
+          type: string
+          example: corr-20261029-000001
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiErrorDetail'
+    ApiErrorDetail:
+      type: object
+      required:
+      - field
+      - reason
+      properties:
+        field:
+          type: string
+          example: documentNumber
+        reason:
+          type: string
+          example: must match the format and length for the selected document type
+    CustomerType:
+      type: string
+      enum:
+      - PERSONAL
+      - BUSINESS
+    DocumentType:
+      type: string
+      enum:
+      - DNI
+      - RUC
+      - CE
+      - PASSPORT
+    CustomerProfile:
+      type: string
+      enum:
+      - STANDARD
+      description: Phase I supports STANDARD. VIP and SME are reserved for Phase II.
+    CustomerStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+    CreateCustomerRequest:
+      type: object
+      required:
+      - customerType
+      - documentType
+      - documentNumber
+      - email
+      - phone
+      properties:
+        customerType:
+          $ref: '#/components/schemas/CustomerType'
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
+          type: string
+          pattern: ^[A-Za-z0-9]{5,12}$
+          minLength: 5
+          maxLength: 12
+          example: '12345678'
+        firstName:
+          type: string
+          maxLength: 100
+          nullable: true
+        lastName:
+          type: string
+          maxLength: 100
+          nullable: true
+        businessName:
+          type: string
+          maxLength: 180
+          nullable: true
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+          maxLength: 250
+          nullable: true
+      description: 'Conditional rules: PERSONAL requires firstName and lastName and allows DNI (8 numeric digits), CE (5–12 alphanumeric characters) or PASSPORT (5–12 alphanumeric characters). BUSINESS requires businessName and RUC (11 numeric digits).'
+    UpdateCustomerRequest:
+      type: object
+      minProperties: 1
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+          nullable: true
+        lastName:
+          type: string
+          maxLength: 100
+          nullable: true
+        businessName:
+          type: string
+          maxLength: 180
+          nullable: true
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+          maxLength: 250
+          nullable: true
+    CustomerResponse:
+      type: object
+      required:
+      - customerNumber
+      - customerType
+      - documentType
+      - documentNumber
+      - profile
+      - status
+      - createdAt
+      - updatedAt
+      properties:
+        customerNumber:
+          type: integer
+          format: int64
+          minimum: 10000000
+          maximum: 99999999
+          example: 10000001
+        customerType:
+          $ref: '#/components/schemas/CustomerType'
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
+          type: string
+          example: '12345678'
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        businessName:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          type: string
+          nullable: true
+        profile:
+          $ref: '#/components/schemas/CustomerProfile'
+        status:
+          $ref: '#/components/schemas/CustomerStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CustomerEligibilityResponse:
+      type: object
+      required:
+      - customerNumber
+      - customerType
+      - profile
+      - status
+      - eligible
+      properties:
+        customerNumber:
+          type: integer
+          format: int64
+          example: 10000001
+        customerType:
+          $ref: '#/components/schemas/CustomerType'
+        profile:
+          $ref: '#/components/schemas/CustomerProfile'
+        status:
+          $ref: '#/components/schemas/CustomerStatus'
+        eligible:
+          type: boolean
+  parameters: {}
+  headers: {}

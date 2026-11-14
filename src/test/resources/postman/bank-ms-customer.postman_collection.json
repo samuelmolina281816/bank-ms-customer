@@ -1,0 +1,698 @@
+{
+  "info": {
+    "_postman_id": "8f58f108-18c3-4f69-96d2-8a57e0010001",
+    "name": "Bank MS Customer - Fase I",
+    "description": "Pruebas contract-first de alta, consulta, actualizacion, elegibilidad, validaciones y baja logica. Ejecutar en orden contra un servicio y una base de datos de pruebas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "customerNumber",
+      "value": ""
+    },
+    {
+      "key": "documentNumber",
+      "value": ""
+    },
+    {
+      "key": "businessCustomerNumber",
+      "value": ""
+    },
+    {
+      "key": "businessRuc",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Customer lifecycle - Personal",
+      "item": [
+        {
+          "name": "01 - Create personal customer",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dni = String(Date.now() % 90000000 + 10000000);",
+                  "pm.collectionVariables.set('documentNumber', dni);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Created with HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Response contains public customer number and ACTIVE status', function () {",
+                  "  pm.expect(body.customerNumber).to.be.a('number');",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.profile).to.eql('STANDARD');",
+                  "  pm.expect(body).not.to.have.property('id');",
+                  "});",
+                  "pm.collectionVariables.set('customerNumber', String(body.customerNumber));",
+                  "pm.test('Response preserves the generated DNI', function () { pm.expect(body.documentNumber).to.eql(pm.collectionVariables.get('documentNumber')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "postman-customer-create-personal"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"PERSONAL\",\n  \"documentType\": \"DNI\",\n  \"documentNumber\": \"{{documentNumber}}\",\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Lopez\",\n  \"email\": \"ana.lopez@example.com\",\n  \"phone\": \"5551234567\",\n  \"address\": \"Av. Principal 123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer"
+              ]
+            },
+            "description": "Genera un DNI distinto en cada ejecucion y guarda el customerNumber para las siguientes solicitudes."
+          },
+          "response": []
+        },
+        {
+          "name": "02 - List customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List returns HTTP 200 and an array', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "pm.test('Created customer is present', function () {",
+                  "  const number = Number(pm.collectionVariables.get('customerNumber'));",
+                  "  pm.expect(pm.response.json().some(customer => customer.customerNumber === number)).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Find customer by public number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Found customer with HTTP 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(String(pm.response.json().customerNumber)).to.eql(pm.collectionVariables.get('customerNumber'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/{{customerNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "{{customerNumber}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Find customer by document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Found customer by document with HTTP 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(String(pm.response.json().customerNumber)).to.eql(pm.collectionVariables.get('customerNumber'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/documents/DNI/{{documentNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "documents",
+                "DNI",
+                "{{documentNumber}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05 - Check active customer eligibility",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Active customer is eligible', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().eligible).to.eql(true);",
+                  "  pm.expect(pm.response.json()).not.to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/documents/DNI/{{documentNumber}}/eligibility",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "documents",
+                "DNI",
+                "{{documentNumber}}",
+                "eligibility"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "06 - Update customer contact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contact update returns HTTP 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().email).to.eql('ana.updated@example.com');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ana.updated@example.com\",\n  \"phone\": \"5559876543\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/{{customerNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "{{customerNumber}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "07 - Reject empty update",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Empty update is rejected with HTTP 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "  pm.expect(pm.response.json().correlationId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/{{customerNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "{{customerNumber}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "08 - Reject duplicate document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Duplicate document returns HTTP 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().code).to.eql('DUPLICATE_CUSTOMER_DOCUMENT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"PERSONAL\",\n  \"documentType\": \"DNI\",\n  \"documentNumber\": \"{{documentNumber}}\",\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Lopez\",\n  \"email\": \"duplicate@example.com\",\n  \"phone\": \"5551234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "09 - Reject incompatible personal type and RUC",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Incompatible customer/document returns HTTP 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('CUSTOMER_VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"PERSONAL\",\n  \"documentType\": \"RUC\",\n  \"documentNumber\": \"20123456789\",\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Lopez\",\n  \"email\": \"invalid@example.com\",\n  \"phone\": \"5551234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "10 - Reject unknown customer number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown customer returns HTTP 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().code).to.eql('CUSTOMER_NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/99999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "99999999"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "11 - Deactivate customer (logical delete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Customer is logically deactivated with HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/{{customerNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "{{customerNumber}}"
+              ]
+            },
+            "description": "Desactiva el registro; no lo elimina fisicamente."
+          },
+          "response": []
+        },
+        {
+          "name": "12 - Verify inactive customer is not eligible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Inactive customer remains queryable but is ineligible', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().eligible).to.eql(false);",
+                  "  pm.expect(pm.response.json().status).to.eql('INACTIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/documents/DNI/{{documentNumber}}/eligibility",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "documents",
+                "DNI",
+                "{{documentNumber}}",
+                "eligibility"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Ejecutar en orden. El alta inicial genera un DNI aleatorio para permitir repetir la coleccion sin chocar con datos de ejecuciones anteriores."
+    },
+    {
+      "name": "Customer lifecycle - Business",
+      "item": [
+        {
+          "name": "01 - Create business customer",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = String(Date.now()).slice(-9);",
+                  "pm.collectionVariables.set('businessRuc', '20' + suffix);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Business customer created with HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Business response has RUC, business name and no personal names', function () {",
+                  "  pm.expect(body.documentType).to.eql('RUC');",
+                  "  pm.expect(body.businessName).to.eql('Acme Peru S.A.C.');",
+                  "  pm.expect(body.firstName).to.be.oneOf([null, undefined]);",
+                  "  pm.expect(body.lastName).to.be.oneOf([null, undefined]);",
+                  "});",
+                  "pm.collectionVariables.set('businessCustomerNumber', String(body.customerNumber));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"BUSINESS\",\n  \"documentType\": \"RUC\",\n  \"documentNumber\": \"{{businessRuc}}\",\n  \"businessName\": \"Acme Peru S.A.C.\",\n  \"email\": \"contacto@acme.example\",\n  \"phone\": \"555111222\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Find business by RUC",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Business is found by RUC', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(String(pm.response.json().customerNumber)).to.eql(pm.collectionVariables.get('businessCustomerNumber'));",
+                  "  pm.expect(pm.response.json().documentNumber).to.eql(pm.collectionVariables.get('businessRuc'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/documents/RUC/{{businessRuc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer",
+                "documents",
+                "RUC",
+                "{{businessRuc}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Reject personal customer with RUC",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Personal type with RUC is rejected with HTTP 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('CUSTOMER_VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"PERSONAL\",\n  \"documentType\": \"RUC\",\n  \"documentNumber\": \"20111222333\",\n  \"firstName\": \"Mario\",\n  \"lastName\": \"Test\",\n  \"email\": \"mario@example.com\",\n  \"phone\": \"555000111\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customer"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Flujo empresarial separado; ejecutar en orden. Genera un RUC unico de 11 digitos."
+    }
+  ]
+}
