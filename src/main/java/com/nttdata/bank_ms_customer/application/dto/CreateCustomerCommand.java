@@ -1,5 +1,6 @@
 package com.nttdata.bank_ms_customer.application.dto;
 
+import com.nttdata.bank_ms_customer.domain.enums.CustomerProfile;
 import com.nttdata.bank_ms_customer.domain.enums.CustomerType;
 import com.nttdata.bank_ms_customer.domain.enums.DocumentType;
 
@@ -12,5 +13,6 @@ public record CreateCustomerCommand(
         String businessName,
         String email,
         String phone,
-        String address) {
+        String address,
+        CustomerProfile profile) {
 }

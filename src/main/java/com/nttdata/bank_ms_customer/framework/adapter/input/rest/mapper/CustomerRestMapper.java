@@ -26,7 +26,10 @@ public class CustomerRestMapper {
                 request.getBusinessName(),
                 request.getEmail(),
                 request.getPhone(),
-                request.getAddress());
+                request.getAddress(),
+                request.getProfile() == null
+                        ? null
+                        : com.nttdata.bank_ms_customer.domain.enums.CustomerProfile.valueOf(request.getProfile().name()));
     }
 
     public UpdateCustomerCommand toCommand(UpdateCustomerRequest request) {

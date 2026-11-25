@@ -110,9 +110,9 @@ The relational model keeps common identity in `customers`, names in
 in `customer_contact`. `customer_profiles` is a type-scoped catalog and a
 composite foreign key prevents incompatible profile/type pairs. Deferred
 PostgreSQL constraint triggers require exactly one matching subtype at commit.
-The catalog currently enables `STANDARD` only; future profiles can be added
-without changing the table structure, while their behavior still requires
-application support.
+The profile catalog contains `STANDARD` for both customer types, `VIP` for
+`PERSONAL` and `PYME` for `BUSINESS`; the composite foreign key rejects
+incompatible type/profile pairs.
 
 For shared environments, configure a properly initialized and secured Vault
 deployment with production authentication and policies; do not use the
@@ -144,9 +144,8 @@ adapters register the operations.
 Import `src/test/resources/postman/bank-ms-customer.postman_collection.json`
 and optionally `bank-ms-customer-local.postman_environment.json`. Start the
 service and select the `bank-ms-customer - local` environment, then run the
-collection in order. The personal flow generates a fresh DNI and verifies
-create/list/find/update/validation/duplicate/logical-delete/eligibility behavior;
-the business flow generates a unique RUC and checks business-customer rules.
+collection in order. The collection covers the Fase I lifecycle and Fase II
+VIP/PYME creation, profile validation and eligibility by public number.
 The collection targets a test/development instance and does not require
 credentials.
 
@@ -154,9 +153,19 @@ credentials.
 
 - Personal customers: DNI (8 digits), CE or passport (5–12 alphanumeric characters).
 - Business customers: RUC (11 digits).
-- Customer documents are unique; new customers start ACTIVE with STANDARD profile.
+- Customer documents are unique; new customers start ACTIVE. The optional
+  create profile defaults to STANDARD; PERSONAL also allows VIP and BUSINESS
+  also allows PYME. Profile is assigned at creation and is not changed through
+  the general update endpoint.
 - A customer has exactly one subtype matching its customer type and one contact
   record. Account, credit, card, transfer, Kafka, Redis, JWT and Yanki features
-  remain outside this Phase I implementation.
+  remain outside this customer service.
 - DELETE deactivates logically and retains the record.
-- Eligibility returns only public customer data and is true for ACTIVE customers.
+- Eligibility is available by document and public `customerNumber`; the
+  response contains only `customerNumber`, type, profile, status and `eligible`.
+  `eligible` means only that the customer is ACTIVE, not that any product is
+  approved.
+- Customer currently has no outbound calls to other microservices, so a
+  Resilience4j circuit breaker and retries are not applicable here. Any future
+  remote integration must define its timeout and safe retry policy at that
+  boundary.

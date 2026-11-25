@@ -9,6 +9,7 @@ import com.nttdata.bank_ms_customer.application.port.input.CustomerInputPort;
 import com.nttdata.bank_ms_customer.application.port.output.CustomerNumberGenerator;
 import com.nttdata.bank_ms_customer.application.port.output.CustomerRepositoryPort;
 import com.nttdata.bank_ms_customer.domain.enums.DocumentType;
+import com.nttdata.bank_ms_customer.domain.enums.CustomerProfile;
 import com.nttdata.bank_ms_customer.domain.exception.CustomerNotFoundException;
 import com.nttdata.bank_ms_customer.domain.exception.DuplicateCustomerDocumentException;
 import com.nttdata.bank_ms_customer.domain.model.ContactInformation;
@@ -37,11 +38,14 @@ public final class CustomerUseCase implements CustomerInputPort, CustomerEligibi
             ContactInformation contact = new ContactInformation(command.email(), command.phone(), command.address());
             Customer.validateIdentity(command.customerType(), document,
                     command.firstName(), command.lastName(), command.businessName());
+            CustomerProfile profile = command.profile() == null ? CustomerProfile.STANDARD : command.profile();
+            Customer.validateProfileCompatibility(command.customerType(), profile);
             return customerRepository.existsByDocument(document)
                     .flatMap(exists -> exists
                             ? Single.error(new DuplicateCustomerDocumentException())
                             : customerNumberGenerator.nextCustomerNumber())
                     .map(number -> Customer.create(number, command.customerType(), document, contact,
+                            profile,
                             command.firstName(), command.lastName(), command.businessName(), Instant.now()))
                     .flatMap(customerRepository::save)
                     .map(CustomerDto::from);
@@ -93,12 +97,24 @@ public final class CustomerUseCase implements CustomerInputPort, CustomerEligibi
     public Single<CustomerEligibilityDto> getEligibility(DocumentType type, String number) {
         return customerRepository.findByDocument(new IdentificationDocument(type, number))
                 .switchIfEmpty(Maybe.error(new CustomerNotFoundException()))
-                .map(customer -> new CustomerEligibilityDto(
-                        customer.getCustomerNumber(),
-                        customer.getCustomerType(),
-                        customer.getProfile(),
-                        customer.getStatus(),
-                        customer.isActive()))
+                .map(this::toEligibilityDto)
                 .toSingle();
+    }
+
+    @Override
+    public Single<CustomerEligibilityDto> getEligibilityByCustomerNumber(Long customerNumber) {
+        return customerRepository.findByCustomerNumber(customerNumber)
+                .switchIfEmpty(Maybe.error(new CustomerNotFoundException()))
+                .map(this::toEligibilityDto)
+                .toSingle();
+    }
+
+    private CustomerEligibilityDto toEligibilityDto(Customer customer) {
+        return new CustomerEligibilityDto(
+                customer.getCustomerNumber(),
+                customer.getCustomerType(),
+                customer.getProfile(),
+                customer.getStatus(),
+                customer.isActive());
     }
 }

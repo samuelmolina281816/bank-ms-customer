@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Bank Customer API
   version: 1.0.0
-  description: Contract-first API for customer identity and eligibility in Phase I.
+  description: Contract-first API for customer identity, profiles and eligibility in Phase II.
 servers:
 - url: http://localhost:8080
   description: Local development
@@ -311,6 +311,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /api/v1/customer/{customerNumber}/eligibility:
+    get:
+      tags:
+      - Customer Eligibility
+      summary: Get minimal eligibility data by public customer number
+      description: eligible is true only when the customer status is ACTIVE; it does not approve or evaluate any product.
+      operationId: getCustomerEligibilityByNumber
+      parameters:
+      - name: customerNumber
+        in: path
+        required: true
+        description: Public customer number; database identifiers are never exposed.
+        schema:
+          type: integer
+          format: int64
+          minimum: 10000000
+          maximum: 99999999
+      responses:
+        '200':
+          description: Minimal customer eligibility data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerEligibilityResponse'
+        '400':
+          description: Invalid customer number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /api/v1/customer/documents/{documentType}/{documentNumber}/eligibility:
     get:
       tags:
@@ -421,7 +463,9 @@ components:
       type: string
       enum:
       - STANDARD
-      description: Phase I supports STANDARD. VIP and SME are reserved for Phase II.
+      - VIP
+      - PYME
+      description: PERSONAL allows STANDARD or VIP; BUSINESS allows STANDARD or PYME.
     CustomerStatus:
       type: string
       enum:
@@ -465,11 +509,13 @@ components:
         phone:
           type: string
           maxLength: 30
+        profile:
+          $ref: '#/components/schemas/CustomerProfile'
         address:
           type: string
           maxLength: 250
           nullable: true
-      description: 'Conditional rules: PERSONAL requires firstName and lastName and allows DNI (8 numeric digits), CE (5–12 alphanumeric characters) or PASSPORT (5–12 alphanumeric characters). BUSINESS requires businessName and RUC (11 numeric digits).'
+      description: 'profile is optional and defaults to STANDARD. PERSONAL allows STANDARD or VIP; BUSINESS allows STANDARD or PYME. Conditional rules: PERSONAL requires firstName and lastName and allows DNI (8 numeric digits), CE (5–12 alphanumeric characters) or PASSPORT (5–12 alphanumeric characters). BUSINESS requires businessName and RUC (11 numeric digits).'
     UpdateCustomerRequest:
       type: object
       minProperties: 1
@@ -570,5 +616,6 @@ components:
           $ref: '#/components/schemas/CustomerStatus'
         eligible:
           type: boolean
+          description: True only when the customer is ACTIVE. This does not evaluate account, card or credit product requirements.
   parameters: {}
   headers: {}

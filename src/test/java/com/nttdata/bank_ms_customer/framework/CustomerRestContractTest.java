@@ -54,6 +54,7 @@ class CustomerRestContractTest {
                 .returnResult()
                 .getResponseBody();
         assertTrue(springDoc != null && springDoc.contains("/api/v1/customer"));
+        assertTrue(springDoc.contains("/api/v1/customer/{customerNumber}/eligibility"));
         assertTrue(springDoc.contains("createCustomer"));
 
         String sourceContract = client.get()

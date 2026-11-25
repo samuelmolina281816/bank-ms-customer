@@ -29,4 +29,12 @@ public class CustomerEligibilityController implements CustomerEligibilityApi {
                         DocumentType.valueOf(documentType.name()), documentNumber).toFlowable())
                 .map(eligibility -> ResponseEntity.ok(mapper.toEligibilityResponse(eligibility)));
     }
+
+    @Override
+    public Mono<ResponseEntity<CustomerEligibilityResponse>> getCustomerEligibilityByNumber(
+            Long customerNumber,
+            ServerWebExchange exchange) {
+        return Mono.from(eligibilityInput.getEligibilityByCustomerNumber(customerNumber).toFlowable())
+                .map(eligibility -> ResponseEntity.ok(mapper.toEligibilityResponse(eligibility)));
+    }
 }

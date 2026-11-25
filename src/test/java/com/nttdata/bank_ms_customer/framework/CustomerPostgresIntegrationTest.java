@@ -88,6 +88,7 @@ class CustomerPostgresIntegrationTest {
 
         assertTrue(created != null);
         assertEquals(10_000_001L, created.getCustomerNumber());
+        assertEquals("STANDARD", created.getProfile().name());
 
         List<Long> concurrentlyGeneratedNumbers = Flux.range(0, 20)
                 .flatMap(index -> webClient.post()
@@ -164,6 +165,118 @@ class CustomerPostgresIntegrationTest {
                 .expectBody()
                 .jsonPath("$.customerNumber").isEqualTo(10_000_001);
 
+        CustomerResponse vipCustomer = webTestClient.post()
+                .uri("/api/v1/customer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {
+                          "customerType": "PERSONAL",
+                          "documentType": "DNI",
+                          "documentNumber": "00123457",
+                          "firstName": "Eva",
+                          "lastName": "VIP",
+                          "email": "eva@example.com",
+                          "phone": "5551234",
+                          "profile": "VIP"
+                        }
+                        """)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(CustomerResponse.class)
+                .returnResult()
+                .getResponseBody();
+        assertTrue(vipCustomer != null);
+        assertEquals("VIP", vipCustomer.getProfile().name());
+
+        webTestClient.get()
+                .uri("/api/v1/customer/{customerNumber}/eligibility", vipCustomer.getCustomerNumber())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.customerNumber").isEqualTo(vipCustomer.getCustomerNumber())
+                .jsonPath("$.customerType").isEqualTo("PERSONAL")
+                .jsonPath("$.profile").isEqualTo("VIP")
+                .jsonPath("$.status").isEqualTo("ACTIVE")
+                .jsonPath("$.eligible").isEqualTo(true)
+                .jsonPath("$.documentNumber").doesNotExist()
+                .jsonPath("$.email").doesNotExist()
+                .jsonPath("$.phone").doesNotExist()
+                .jsonPath("$.address").doesNotExist()
+                .jsonPath("$.id").doesNotExist();
+
+        CustomerResponse pymeCustomer = webTestClient.post()
+                .uri("/api/v1/customer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {
+                          "customerType": "BUSINESS",
+                          "documentType": "RUC",
+                          "documentNumber": "20123456780",
+                          "businessName": "Empresa Pyme",
+                          "email": "pyme@example.com",
+                          "phone": "5559876",
+                          "profile": "PYME"
+                        }
+                        """)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(CustomerResponse.class)
+                .returnResult()
+                .getResponseBody();
+        assertTrue(pymeCustomer != null);
+        assertEquals("PYME", pymeCustomer.getProfile().name());
+
+        webTestClient.get()
+                .uri("/api/v1/customer/{customerNumber}/eligibility", pymeCustomer.getCustomerNumber())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.profile").isEqualTo("PYME");
+
+        webTestClient.get()
+                .uri("/api/v1/customer/{customerNumber}/eligibility", 99_999_999L)
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("CUSTOMER_NOT_FOUND");
+
+        webTestClient.post()
+                .uri("/api/v1/customer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {
+                          "customerType": "PERSONAL",
+                          "documentType": "DNI",
+                          "documentNumber": "00123458",
+                          "firstName": "No",
+                          "lastName": "Profile",
+                          "email": "invalid@example.com",
+                          "phone": "5551234",
+                          "profile": "PYME"
+                        }
+                        """)
+                .exchange()
+                .expectStatus().isEqualTo(422)
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("CUSTOMER_VALIDATION_ERROR");
+
+        webTestClient.post()
+                .uri("/api/v1/customer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {
+                          "customerType": "BUSINESS",
+                          "documentType": "RUC",
+                          "documentNumber": "20123456781",
+                          "businessName": "Invalid Profile",
+                          "email": "invalid@example.com",
+                          "phone": "5551234",
+                          "profile": "VIP"
+                        }
+                        """)
+                .exchange()
+                .expectStatus().isEqualTo(422);
+
         webTestClient.post()
                 .uri("/api/v1/customer")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -211,6 +324,14 @@ class CustomerPostgresIntegrationTest {
                 .expectBody()
                 .jsonPath("$.eligible").isEqualTo(false);
 
+        webTestClient.get()
+                .uri("/api/v1/customer/{customerNumber}/eligibility", created.getCustomerNumber())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.status").isEqualTo("INACTIVE")
+                .jsonPath("$.eligible").isEqualTo(false);
+
         webTestClient.delete()
                 .uri("/api/v1/customer/{customerNumber}", created.getCustomerNumber())
                 .exchange()
@@ -230,12 +351,27 @@ class CustomerPostgresIntegrationTest {
                 .expectBody()
                 .jsonPath("$.status").isEqualTo("INACTIVE");
 
+        webTestClient.get()
+                .uri("/api/v1/customer/{customerNumber}", vipCustomer.getCustomerNumber())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.profile").isEqualTo("VIP");
+
         assertThrows(RuntimeException.class, () -> databaseClient.sql("""
                 INSERT INTO customers (
                     customer_number, customer_type, document_type, document_number,
                     profile_code, status, created_at, updated_at
                 ) VALUES (10000999, 'PERSONAL', 'DNI', '87654321',
                     'STANDARD', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """).fetch().rowsUpdated().block(Duration.ofSeconds(5)));
+
+        assertThrows(RuntimeException.class, () -> databaseClient.sql("""
+                INSERT INTO customers (
+                    customer_number, customer_type, document_type, document_number,
+                    profile_code, status, created_at, updated_at
+                ) VALUES (10000998, 'PERSONAL', 'DNI', '87654320',
+                    'PYME', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """).fetch().rowsUpdated().block(Duration.ofSeconds(5)));
     }
 }

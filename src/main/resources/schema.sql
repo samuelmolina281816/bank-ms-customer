@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS customer_profiles (
 @@
 
 INSERT INTO customer_profiles (customer_type, profile_code)
-VALUES ('PERSONAL', 'STANDARD'), ('BUSINESS', 'STANDARD')
+VALUES ('PERSONAL', 'STANDARD'),
+       ('BUSINESS', 'STANDARD'),
+       ('PERSONAL', 'VIP'),
+       ('BUSINESS', 'PYME')
 ON CONFLICT (customer_type, profile_code) DO NOTHING;
 @@
 

@@ -3,8 +3,8 @@ package com.nttdata.bank_ms_customer.domain.model;
 import com.nttdata.bank_ms_customer.domain.enums.CustomerProfile;
 import com.nttdata.bank_ms_customer.domain.enums.CustomerStatus;
 import com.nttdata.bank_ms_customer.domain.enums.CustomerType;
-import com.nttdata.bank_ms_customer.domain.enums.DocumentType;
 import com.nttdata.bank_ms_customer.domain.exception.InvalidCustomerException;
+import com.nttdata.bank_ms_customer.domain.validation.CustomerValidationStrategies;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -55,13 +55,27 @@ public final class Customer {
             CustomerType customerType,
             IdentificationDocument document,
             ContactInformation contactInformation,
+            CustomerProfile profile,
             String firstName,
             String lastName,
             String businessName,
             Instant now) {
         return new Customer(null, customerNumber, customerType, document, contactInformation,
-                CustomerProfile.STANDARD, CustomerStatus.ACTIVE, now, now,
+                profile, CustomerStatus.ACTIVE, now, now,
                 firstName, lastName, businessName);
+    }
+
+    public static Customer create(
+            Long customerNumber,
+            CustomerType customerType,
+            IdentificationDocument document,
+            ContactInformation contactInformation,
+            String firstName,
+            String lastName,
+            String businessName,
+            Instant now) {
+        return create(customerNumber, customerType, document, contactInformation,
+                CustomerProfile.STANDARD, firstName, lastName, businessName, now);
     }
 
     public static void validateIdentity(
@@ -75,21 +89,8 @@ public final class Customer {
         String normalizedFirstName = normalizeOptional(firstName);
         String normalizedLastName = normalizeOptional(lastName);
         String normalizedBusinessName = normalizeOptional(businessName);
-        DocumentType type = document.type();
-        if (customerType == CustomerType.PERSONAL) {
-            if ((type != DocumentType.DNI && type != DocumentType.CE && type != DocumentType.PASSPORT)
-                    || normalizedFirstName == null || normalizedLastName == null || normalizedBusinessName != null) {
-                throw new InvalidCustomerException("Personal customers require firstName, lastName and a personal document");
-            }
-            if (normalizedFirstName.length() > 100 || normalizedLastName.length() > 100) {
-                throw new InvalidCustomerException("Personal customer names cannot exceed 100 characters");
-            }
-        } else if (type != DocumentType.RUC || normalizedBusinessName == null
-                || normalizedFirstName != null || normalizedLastName != null) {
-            throw new InvalidCustomerException("Business customers require RUC and businessName");
-        } else if (normalizedBusinessName.length() > 180) {
-            throw new InvalidCustomerException("Business name cannot exceed 180 characters");
-        }
+        CustomerValidationStrategies.forType(customerType).validateIdentity(
+                document, normalizedFirstName, normalizedLastName, normalizedBusinessName);
     }
 
     public void update(
@@ -134,6 +135,12 @@ public final class Customer {
             throw new InvalidCustomerException("Customer number must contain 8 digits");
         }
         validateIdentity(customerType, identificationDocument, firstName, lastName, businessName);
+        validateProfileCompatibility(customerType, profile);
+    }
+
+    public static void validateProfileCompatibility(CustomerType customerType, CustomerProfile profile) {
+        Objects.requireNonNull(profile, "Profile is required");
+        CustomerValidationStrategies.forType(customerType).validateProfile(profile);
     }
 
     private static String normalizeOptional(String value) {

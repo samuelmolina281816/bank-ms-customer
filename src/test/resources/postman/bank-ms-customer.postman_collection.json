@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "8f58f108-18c3-4f69-96d2-8a57e0010001",
-    "name": "Bank MS Customer - Fase I",
-    "description": "Pruebas contract-first de alta, consulta, actualizacion, elegibilidad, validaciones y baja logica. Ejecutar en orden contra un servicio y una base de datos de pruebas.",
+    "name": "Bank MS Customer - Fase II",
+    "description": "Pruebas contract-first de Fase I y Fase II: ciclo de vida, perfiles STANDARD/VIP/PYME, elegibilidad minima y validaciones. Ejecutar en orden contra una base de datos de pruebas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -24,6 +24,22 @@
     },
     {
       "key": "businessRuc",
+      "value": ""
+    },
+    {
+      "key": "vipCustomerNumber",
+      "value": ""
+    },
+    {
+      "key": "vipDocumentNumber",
+      "value": ""
+    },
+    {
+      "key": "pymeCustomerNumber",
+      "value": ""
+    },
+    {
+      "key": "pymeRuc",
       "value": ""
     }
   ],
@@ -693,6 +709,315 @@
         }
       ],
       "description": "Flujo empresarial separado; ejecutar en orden. Genera un RUC unico de 11 digitos."
+    },
+    {
+      "name": "Phase II - Customer profiles and public eligibility",
+      "item": [
+        {
+          "name": "01 - Create PERSONAL VIP customer",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dni = String(Math.floor(10000000 + Math.random() * 90000000));",
+                  "pm.collectionVariables.set('vipDocumentNumber', dni);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Created with HTTP 201 and VIP profile', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.customerType).to.eql('PERSONAL');",
+                  "  pm.expect(body.profile).to.eql('VIP');",
+                  "  pm.collectionVariables.set('vipCustomerNumber', String(body.customerNumber));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"PERSONAL\",\n  \"documentType\": \"DNI\",\n  \"documentNumber\": \"{{vipDocumentNumber}}\",\n  \"firstName\": \"Eva\",\n  \"lastName\": \"VIP\",\n  \"email\": \"eva.vip@example.com\",\n  \"phone\": \"5551234\",\n  \"profile\": \"VIP\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/customer"
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Check VIP eligibility by public number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Eligibility is minimal and active', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.customerNumber).to.eql(Number(pm.collectionVariables.get('vipCustomerNumber')));",
+                  "  pm.expect(body.customerType).to.eql('PERSONAL');",
+                  "  pm.expect(body.profile).to.eql('VIP');",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.eligible).to.eql(true);",
+                  "  ['documentNumber', 'email', 'phone', 'address', 'id'].forEach(function (field) { pm.expect(body).not.to.have.property(field); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/customer/{{vipCustomerNumber}}/eligibility"
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Create BUSINESS PYME customer",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ruc = '20' + String(Date.now()).slice(-7) + String(Math.floor(Math.random() * 100)).padStart(2, '0');",
+                  "pm.collectionVariables.set('pymeRuc', ruc);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Created with HTTP 201 and PYME profile', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.customerType).to.eql('BUSINESS');",
+                  "  pm.expect(body.profile).to.eql('PYME');",
+                  "  pm.collectionVariables.set('pymeCustomerNumber', String(body.customerNumber));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"BUSINESS\",\n  \"documentType\": \"RUC\",\n  \"documentNumber\": \"{{pymeRuc}}\",\n  \"businessName\": \"Empresa PYME\",\n  \"email\": \"pyme@example.com\",\n  \"phone\": \"5559876\",\n  \"profile\": \"PYME\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/customer"
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Check PYME eligibility by public number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('PYME eligibility is minimal and active', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.customerType).to.eql('BUSINESS');",
+                  "  pm.expect(body.profile).to.eql('PYME');",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.eligible).to.eql(true);",
+                  "  ['documentNumber', 'email', 'phone', 'address', 'id'].forEach(function (field) { pm.expect(body).not.to.have.property(field); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/customer/{{pymeCustomerNumber}}/eligibility"
+          },
+          "response": []
+        },
+        {
+          "name": "05 - Reject PERSONAL with PYME profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('invalidPersonalDni', '7' + String(Date.now()).slice(-7));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Incompatible profile is rejected', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"PERSONAL\",\n  \"documentType\": \"DNI\",\n  \"documentNumber\": \"{{invalidPersonalDni}}\",\n  \"firstName\": \"Invalid\",\n  \"lastName\": \"Profile\",\n  \"email\": \"invalid.personal@example.com\",\n  \"phone\": \"5551234\",\n  \"profile\": \"PYME\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/customer"
+          },
+          "response": []
+        },
+        {
+          "name": "06 - Reject BUSINESS with VIP profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('invalidBusinessRuc', '21' + String(Date.now()).slice(-9));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Incompatible profile is rejected', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerType\": \"BUSINESS\",\n  \"documentType\": \"RUC\",\n  \"documentNumber\": \"{{invalidBusinessRuc}}\",\n  \"businessName\": \"Invalid Profile S.A.\",\n  \"email\": \"invalid.business@example.com\",\n  \"phone\": \"5551234\",\n  \"profile\": \"VIP\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/customer"
+          },
+          "response": []
+        },
+        {
+          "name": "07 - Return 404 for unknown public number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown customer returns 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/customer/10000000/eligibility"
+          },
+          "response": []
+        },
+        {
+          "name": "08 - Deactivate VIP customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('VIP customer deactivated', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/customer/{{vipCustomerNumber}}"
+          },
+          "response": []
+        },
+        {
+          "name": "09 - Inactive VIP is ineligible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Inactive customer remains queryable but is not eligible', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('INACTIVE');",
+                  "  pm.expect(body.eligible).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/customer/{{vipCustomerNumber}}/eligibility"
+          },
+          "response": []
+        }
+      ],
+      "description": "Ejecutar en orden después de los flujos Fase I. Los clientes VIP/PYME se crean primero para reutilizar sus números públicos en las consultas de elegibilidad."
     }
   ]
 }

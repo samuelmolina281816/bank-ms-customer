@@ -6,4 +6,6 @@ import io.reactivex.rxjava3.core.Single;
 
 public interface CustomerEligibilityInputPort {
     Single<CustomerEligibilityDto> getEligibility(DocumentType type, String number);
+
+    Single<CustomerEligibilityDto> getEligibilityByCustomerNumber(Long customerNumber);
 }
